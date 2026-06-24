@@ -1,0 +1,2 @@
+python -m backend.main
+python -m streamlit run dashboard.py  run this two programs in the root terminal

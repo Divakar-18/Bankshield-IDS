@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BankShield AI | Intrusion Detection & Threat Intelligence for Banking IoT</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        cyber: {
+                            bg: '#030712',
+                            card: 'rgba(17, 24, 39, 0.7)',
+                            border: '#1f2937',
+                            primary: '#0ea5e9', // Neon Blue
+                            success: '#10b981', // Cyber Green
+                            warning: '#f59e0b', // Yellow
+                            danger: '#ef4444',  // Red
+                            glow: '#00f2fe'
+                        }
+                    },
+                    boxShadow: {
+                        'neon-blue': '0 0 15px rgba(14, 165, 233, 0.4)',
+                        'neon-green': '0 0 15px rgba(16, 185, 129, 0.4)',
+                        'neon-red': '0 0 15px rgba(239, 68, 68, 0.4)'
+                    }
+                }
+            }
+        }
+    </script>
+    <!-- Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: #030712;
+            color: #f3f4f6;
+            overflow-x: hidden;
+        }
+        .code-font {
+            font-family: 'JetBrains Mono', monospace;
+        }
+        /* Glassmorphism scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #030712;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #1f2937;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #0ea5e9;
+        }
+        .glow-text-blue {
+            text-shadow: 0 0 10px rgba(14, 165, 233, 0.6);
+        }
+        .glow-text-green {
+            text-shadow: 0 0 10px rgba(16, 185, 129, 0.6);
+        }
+        .glow-text-red {
+            text-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+        }
+        .radar-sweep {
+            position: relative;
+            overflow: hidden;
+        }
+        .radar-sweep::after {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            top: -50%;
+            left: -50%;
+            background: conic-gradient(from 0deg, rgba(14, 165, 233, 0.15) 0deg, rgba(14, 165, 233, 0) 90deg);
+            animation: sweep 6s linear infinite;
+            transform-origin: center;
+            pointer-events: none;
+        }
+        @keyframes sweep {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+    </style>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- React and Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect, useRef } = React;
+
+        function App() {
+            // Navigation
+            const [view, setView] = useState('landing'); // 'landing' | 'dashboard' | 'threat-intel'
+
+            // Data State
+            const [alerts, setAlerts] = useState([]);
+            const [incidents, setIncidents] = useState([]);
+            const [selectedIncident, setSelectedIncident] = useState(null);
+            const [selectedAlert, setSelectedAlert] = useState(null);
+            const [threatIntel, setThreatIntel] = useState(null);
+            const [modelStats, setModelStats] = useState(null);
+            const [activeTactic, setActiveTactic] = useState(null);
+            
+            // Simulation state
+            const [simulating, setSimulating] = useState(false);
+            
+            // Copilot State
+            const [copilotHistory, setCopilotHistory] = useState([]);
+            const [copilotInput, setCopilotInput] = useState('');
+            const [copilotLoading, setCopilotLoading] = useState(false);
+
+            // Fetch main dashboard data
+            const fetchData = async () => {
+                try {
+                    const [alertsRes, incidentsRes, intelRes, statsRes] = await Promise.all([
+                        fetch('/api/v1/alerts?limit=100'),
+                        fetch('/api/v1/incidents'),
+                        fetch('/api/v1/threat-intel'),
+                        fetch('/api/v1/model-stats')
+                    ]);
+                    
+                    const alertsData = await alertsRes.json();
+                    const incidentsData = await incidentsRes.json();
+                    const intelData = await intelRes.json();
+                    const statsData = await statsRes.json();
+
+                    setAlerts(alertsData);
+                    setIncidents(incidentsData);
+                    setThreatIntel(intelData);
+                    setModelStats(statsData);
+
+                    // Set default selection
+                    if (incidentsData.length > 0) {
+                        const defaultInc = incidentsData[0];
+                        setSelectedIncident(defaultInc);
+                        if (defaultInc.alerts && defaultInc.alerts.length > 0) {
+                            setSelectedAlert(defaultInc.alerts[0]);
+                        }
+                    }
+                } catch (error) {
+                    console.error("Error loading SOC data:", error);
+                }
+            };
+
+            useEffect(() => {
+                fetchData();
+            }, []);
+
+            // Handle incident select
+            const handleSelectIncident = (inc) => {
+                setSelectedIncident(inc);
+                if (inc.alerts && inc.alerts.length > 0) {
+                    setSelectedAlert(inc.alerts[0]);
+                }
+                // Clear copilot chat history when changing incidents
+                setCopilotHistory([
+                    {
+                        sender: 'copilot',
+                        text: `Hi Analyst. I have initialized security context for Incident **${inc.id.slice(0, 8)}** targeting the **${inc.asset_type}** subnet. I can discuss its risk indicators, SHAP explanations, or mitigation playbooks. Ask me anything.`
+                    }
+                ]);
+            };
+
+            // Trigger attack simulation
+            const handleSimulateAttack = async (type) => {
+                setSimulating(true);
+                try {
+                    const response = await fetch('/api/v1/alerts/simulate', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ attack_class: type })
+                    });
+                    const res = await response.json();
+                    
+                    // Reload data
+                    await fetchData();
+                    
+                    // Highlight the new incident
+                    if (res.injected_alert) {
+                        // Find incident containing this alert
+                        const newIncidents = await (await fetch('/api/v1/incidents')).json();
+                        const matchedInc = newIncidents.find(inc => inc.alerts.some(a => a.id === res.injected_alert.id));
+                        if (matchedInc) {
+                            handleSelectIncident(matchedInc);
+                        }
+                    }
+                } catch (e) {
+                    console.error(e);
+                } finally {
+                    setSimulating(false);
+                }
+            };
+
+            // Ask Copilot
+            const handleAskCopilot = async (preText = null) => {
+                const queryText = preText || copilotInput;
+                if (!queryText || !selectedIncident) return;
+                
+                if (!preText) setCopilotInput('');
+                
+                // Add query to history
+                setCopilotHistory(prev => [...prev, { sender: 'user', text: queryText }]);
+                setCopilotLoading(true);
+
+                try {
+                    const response = await fetch('/api/v1/copilot/ask', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            incident_id: selectedIncident.id,
+                            question: queryText
+                        })
+                    });
+                    const res = await response.json();
+                    setCopilotHistory(prev => [...prev, { sender: 'copilot', text: res.answer }]);
+                } catch (err) {
+                    console.error(err);
+                    setCopilotHistory(prev => [...prev, { sender: 'copilot', text: "Error calling Copilot reasoning API." }]);
+                } finally {
+                    setCopilotLoading(false);
+                }
+            };
+
+            // Help format copilot markdown-like blocks
+            const formatCopilotResponse = (text) => {
+                // Quick markdown table/bullet helper for UI presentation
+                return text.split('\n').map((line, idx) => {
+                    if (line.startsWith('### ')) {
+                        return <h3 key={idx} className="text-cyber-primary font-semibold text-base mt-3 mb-1">{line.replace('### ', '')}</h3>;
+                    }
+                    if (line.startsWith('#### ')) {
+                        return <h4 key={idx} className="text-gray-300 font-semibold text-sm mt-2 mb-1">{line.replace('#### ', '')}</h4>;
+                    }
+                    if (line.startsWith('- [ ] ')) {
+                        return <div key={idx} className="flex items-start space-x-2 my-1 text-xs code-font text-cyber-glow"><input type="checkbox" readOnly className="mt-1" /> <span>{line.replace('- [ ] ', '')}</span></div>;
+                    }
+                    if (line.startsWith('- ')) {
+                        return <div key={idx} className="list-disc pl-4 text-xs text-gray-300">{line}</div>;
+                    }
+                    if (line.startsWith('|')) {
+                        // Table row
+                        return <div key={idx} className="text-xs code-font text-gray-400 border-b border-cyber-border py-1 flex justify-between"><span>{line}</span></div>;
+                    }
+                    return <p key={idx} className="text-xs text-gray-400 mb-1 leading-relaxed">{line}</p>;
+                });
+            };
+
+            // Metrics computations
+            const activeThreatCount = incidents.filter(i => i.status !== 'Resolved').length;
+            const criticalAlertCount = alerts.filter(a => a.severity === 'Critical').length;
+            const zeroDayCount = alerts.filter(a => a.anomaly_score > 80 && a.attack_class === 'Normal').length; // flagged anomalies
+            const avgRiskScore = incidents.length > 0 ? (incidents.reduce((sum, inc) => sum + parseFloat(inc.overall_risk_score), 0) / incidents.length).toFixed(1) : 0;
+
+            // Render Lucide Icons
+            useEffect(() => {
+                if (window.lucide) {
+                    window.lucide.createIcons();
+                }
+            }, [view, incidents, selectedIncident, copilotHistory]);
+
+            if (view === 'landing') {
+                return (
+                    <div className="min-h-screen bg-cyber-bg flex flex-col justify-between relative overflow-hidden">
+                        {/* Background mesh grid */}
+                        <div className="absolute inset-0 bg-[radial-gradient(#1f2937_1px,transparent_1px)] [background-size:24px_24px] opacity-25"></div>
+                        <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-sky-900/10 rounded-full blur-[120px] pointer-events-none"></div>
+
+                        {/* Top Navbar */}
+                        <header className="w-full max-w-7xl mx-auto px-6 py-6 flex justify-between items-center z-10">
+                            <div className="flex items-center space-x-3">
+                                <div className="w-10 h-10 rounded bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center shadow-neon-blue">
+                                    <i data-lucide="shield" className="text-white w-6 h-6"></i>
+                                </div>
+                                <div>
+                                    <span className="text-xl font-bold tracking-wider text-white code-font">BANKSHIELD<span className="text-sky-500">AI</span></span>
+                                </div>
+                            </div>
+                            <div className="flex items-center space-x-2 text-xs code-font text-sky-400 bg-sky-950/40 border border-sky-900/40 px-3 py-1.5 rounded-full">
+                                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                                <span>Platform Live (Accuracy: 96.82%)</span>
+                            </div>
+                        </header>
+
+                        {/* Hero Content */}
+                        <main className="max-w-7xl mx-auto px-6 grid grid-cols-1 lg:grid-cols-12 gap-12 items-center z-10 flex-grow py-12">
+                            <div className="lg:col-span-6 space-y-6">
+                                <div className="inline-block bg-sky-950/30 border border-sky-800/40 px-3 py-1 rounded text-xs text-sky-400 font-semibold tracking-wider uppercase">
+                                    Explainable AI Security
+                                </div>
+                                <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-none">
+                                    AI-Powered Banking <br/>
+                                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-sky-400 to-emerald-400">Threat Intelligence</span>
+                                </h1>
+                                <p className="text-base text-gray-400 leading-relaxed max-w-lg">
+                                    Detect, explain, prioritize, and neutralize cyber threats across banking IoT networks in real time. Backed by Random Forest Classifiers, Isolation Forest zero-day anomaly detectors, and SHAP explainability.
+                                </p>
+                                
+                                <div className="flex flex-wrap gap-4 pt-2">
+                                    <button 
+                                        onClick={() => setView('dashboard')}
+                                        className="px-8 py-4 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 rounded text-sm font-semibold tracking-wide shadow-neon-blue transition duration-200 flex items-center space-x-2 text-white"
+                                    >
+                                        <span>Launch Security Center</span>
+                                        <i data-lucide="arrow-right" className="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Threat radar landing component */}
+                            <div className="lg:col-span-6 flex justify-center items-center relative">
+                                <div className="w-[380px] h-[380px] md:w-[450px] md:h-[450px] rounded-full border border-sky-950/60 flex items-center justify-center relative radar-sweep bg-slate-950/40 shadow-2xl backdrop-blur-sm">
+                                    <div className="absolute inset-4 rounded-full border border-sky-900/30 flex items-center justify-center">
+                                        <div className="absolute inset-16 rounded-full border border-sky-800/20 flex items-center justify-center">
+                                            <div className="absolute inset-28 rounded-full border border-sky-800/10 flex items-center justify-center">
+                                                <div className="w-8 h-8 rounded-full bg-sky-500/20 flex items-center justify-center">
+                                                    <div className="w-3.5 h-3.5 rounded-full bg-sky-500 animate-ping"></div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    {/* Simulated Threat dots */}
+                                    <div className="absolute top-1/4 left-1/3 w-3 h-3 rounded-full bg-red-500 animate-pulse shadow-neon-red"></div>
+                                    <div className="absolute bottom-1/3 right-1/4 w-3.5 h-3.5 rounded-full bg-yellow-500 animate-pulse shadow-neon-green"></div>
+                                    <div className="absolute top-1/2 right-1/3 w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></div>
+
+                                    {/* Stats overlay */}
+                                    <div className="absolute bottom-6 left-6 right-6 bg-slate-950/90 border border-cyber-border rounded px-4 py-3 text-xs code-font flex justify-between items-center backdrop-blur-md">
+                                        <div>
+                                            <span className="text-gray-500 block">LAST DETECTED</span>
+                                            <span className="text-red-400 font-bold">ATM BACKDOOR ATTEMPT</span>
+                                        </div>
+                                        <div className="text-right">
+                                            <span className="text-gray-500 block">RISK SCORE</span>
+                                            <span className="text-red-500 font-extrabold text-sm">88.5/100</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </main>
+
+                        {/* Footer logos */}
+                        <footer className="w-full border-t border-cyber-border/40 py-6 z-10">
+                            <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center text-xs text-gray-500 space-y-4 md:space-y-0">
+                                <div>
+                                    <span>BANKSHIELD AI platform for cybersecurity operations.</span>
+                                </div>
+                                <div className="flex space-x-6">
+                                    <span>UNSW-NB15 Validated</span>
+                                    <span>SHAP Explainable Layer</span>
+                                    <span>Isolation Forest Zero-Day</span>
+                                </div>
+                            </div>
+                        </footer>
+                    </div>
+                );
+            }
+
+            return (
+                <div className="min-h-screen bg-cyber-bg flex flex-col">
+                    {/* Header */}
+                    <header className="border-b border-cyber-border bg-slate-950/80 px-6 py-4 flex flex-col md:flex-row justify-between items-center z-10 sticky top-0 backdrop-blur-md">
+                        <div className="flex items-center space-x-6 mb-4 md:mb-0">
+                            <div className="flex items-center space-x-2 cursor-pointer" onClick={() => setView('landing')}>
+                                <div className="w-8 h-8 rounded bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center">
+                                    <i data-lucide="shield" className="text-white w-5 h-5"></i>
+                                </div>
+                                <span className="font-bold text-lg text-white code-font">BANKSHIELD<span className="text-sky-500">AI</span></span>
+                            </div>
+                            
+                            <nav className="flex space-x-1 bg-slate-900 border border-cyber-border rounded p-0.5 text-xs font-semibold">
+                                <button 
+                                    onClick={() => setView('dashboard')}
+                                    className={`px-3 py-1.5 rounded transition ${view === 'dashboard' ? 'bg-sky-500/20 text-sky-400 border-b-2 border-sky-400' : 'text-gray-400 hover:text-gray-200'}`}
+                                >
+                                    SOC Dashboard
+                                </button>
+                                <button 
+                                    onClick={() => setView('threat-intel')}
+                                    className={`px-3 py-1.5 rounded transition ${view === 'threat-intel' ? 'bg-sky-500/20 text-sky-400 border-b-2 border-sky-400' : 'text-gray-400 hover:text-gray-200'}`}
+                                >
+                                    Threat Intel Center
+                                </button>
+                            </nav>
+                        </div>
+
+                        {/* Top Simulation Controllers */}
+                        <div className="flex items-center space-x-3 text-xs">
+                            <span className="text-gray-500 code-font">SIMULATE ATTACK:</span>
+                            <div className="flex space-x-1.5">
+                                <button 
+                                    onClick={() => handleSimulateAttack('DoS')} 
+                                    disabled={simulating}
+                                    className="px-2.5 py-1.5 bg-red-950/40 hover:bg-red-900/40 border border-red-900/60 rounded font-semibold text-red-400 transition"
+                                >
+                                    DoS (ATM disruption)
+                                </button>
+                                <button 
+                                    onClick={() => handleSimulateAttack('Worms')} 
+                                    disabled={simulating}
+                                    className="px-2.5 py-1.5 bg-amber-950/40 hover:bg-amber-900/40 border border-amber-900/60 rounded font-semibold text-amber-400 transition"
+                                >
+                                    Worm (Lateral spread)
+                                </button>
+                                <button 
+                                    onClick={() => handleSimulateAttack('Backdoor')} 
+                                    disabled={simulating}
+                                    className="px-2.5 py-1.5 bg-orange-950/40 hover:bg-orange-900/40 border border-orange-900/60 rounded font-semibold text-orange-400 transition"
+                                >
+                                    Backdoor (CCTV)
+                                </button>
+                                <button 
+                                    onClick={() => handleSimulateAttack('Exploits')} 
+                                    disabled={simulating}
+                                    className="px-2.5 py-1.5 bg-purple-950/40 hover:bg-purple-900/40 border border-purple-900/60 rounded font-semibold text-purple-400 transition"
+                                >
+                                    Exploit (SWIFT core)
+                                </button>
+                            </div>
+                        </div>
+                    </header>
+
+                    {/* Threat Intel Sub-View */}
+                    {view === 'threat-intel' ? (
+                        <div className="flex-grow p-6 max-w-7xl mx-auto w-full space-y-6">
+                            <div className="bg-slate-950 border border-cyber-border rounded-lg p-6">
+                                <h2 className="text-xl font-bold text-white mb-2">Threat Intelligence Center</h2>
+                                <p className="text-xs text-gray-400 mb-6">Aggregated Mitre tactics, vector evaluation, and publication-ready daily/weekly summaries.</p>
+                                
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    {/* Top Dangerous Vectors */}
+                                    <div className="bg-slate-900/50 border border-cyber-border rounded-lg p-4">
+                                        <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center"><i data-lucide="activity" className="w-4 h-4 text-sky-500 mr-2"></i> Most Dangerous Threat Classes</h3>
+                                        <div className="space-y-2">
+                                            {threatIntel?.dangerous_classes?.map((c, idx) => (
+                                                <div key={idx} className="flex justify-between items-center text-xs code-font bg-slate-950/50 p-2.5 rounded border border-cyber-border">
+                                                    <div>
+                                                        <span className="text-white font-bold">{c.class}</span>
+                                                        <span className="text-gray-500 ml-3 font-semibold">({c.count} instances)</span>
+                                                    </div>
+                                                    <span className={`px-2 py-0.5 rounded font-bold ${c.severity === 'Critical' ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>{c.avg_risk}/100 Risk</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+
+                                    {/* Top Attack Sources */}
+                                    <div className="bg-slate-900/50 border border-cyber-border rounded-lg p-4">
+                                        <h3 className="text-sm font-semibold text-gray-300 mb-3 flex items-center"><i data-lucide="globe" className="w-4 h-4 text-emerald-500 mr-2"></i> Top Attack Sources</h3>
+                                        <div className="space-y-2">
+                                            {threatIntel?.top_sources?.map((s, idx) => (
+                                                <div key={idx} className="flex justify-between items-center text-xs code-font bg-slate-950/50 p-2.5 rounded border border-cyber-border">
+                                                    <span className="text-sky-400 font-bold">{s.ip}</span>
+                                                    <span className="text-white">{s.count} alerts triggered</span>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Reports and Document Summaries */}
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-6">
+                                    <h3 className="text-sm font-semibold text-gray-300 mb-4 flex justify-between items-center">
+                                        <span>Daily Threat Intelligence Briefing</span>
+                                        <button 
+                                            onClick={async () => {
+                                                const res = await (await fetch('/api/v1/threat-intel/report/daily')).json();
+                                                alert(res.report);
+                                            }}
+                                            className="text-xs text-sky-400 font-semibold border border-sky-900/40 px-2 py-1 rounded bg-sky-950/30 hover:bg-sky-900/30"
+                                        >
+                                            View Full Markdown
+                                        </button>
+                                    </h3>
+                                    <div className="bg-slate-900/50 border border-cyber-border p-4 rounded text-xs code-font text-gray-400 h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                                        {threatIntel ? ThreatIntelligenceCenter_MockDaily(threatIntel) : 'Loading daily stats...'}
+                                    </div>
+                                </div>
+
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-6">
+                                    <h3 className="text-sm font-semibold text-gray-300 mb-4 flex justify-between items-center">
+                                        <span>Weekly Analytical Audit Summary</span>
+                                        <button 
+                                            onClick={async () => {
+                                                const res = await (await fetch('/api/v1/threat-intel/report/weekly')).json();
+                                                alert(res.report);
+                                            }}
+                                            className="text-xs text-sky-400 font-semibold border border-sky-900/40 px-2 py-1 rounded bg-sky-950/30 hover:bg-sky-900/30"
+                                        >
+                                            View Full Markdown
+                                        </button>
+                                    </h3>
+                                    <div className="bg-slate-900/50 border border-cyber-border p-4 rounded text-xs code-font text-gray-400 h-64 overflow-y-auto whitespace-pre-wrap leading-relaxed">
+                                        {threatIntel ? ThreatIntelligenceCenter_MockWeekly() : 'Loading weekly report...'}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    ) : (
+                        /* Dashboard Grid Layout */
+                        <div className="flex-grow p-6 grid grid-cols-1 lg:grid-cols-12 gap-6 max-w-[1600px] mx-auto w-full">
+                            
+                            {/* KPI Banner - Top 12 columns */}
+                            <div className="lg:col-span-12 grid grid-cols-2 md:grid-cols-6 gap-4">
+                                <div className="bg-slate-950/80 border border-cyber-border rounded-lg p-4 flex flex-col justify-center">
+                                    <span className="text-[10px] text-gray-500 font-semibold tracking-wider uppercase">Traffic Analyzed</span>
+                                    <span className="text-lg font-bold text-white mt-1 code-font">{alerts.length * 45} flows</span>
+                                </div>
+                                <div className="bg-slate-950/80 border border-cyber-border rounded-lg p-4 flex flex-col justify-center relative">
+                                    <span className="text-[10px] text-gray-500 font-semibold tracking-wider uppercase flex items-center">
+                                        Active Threat Groups
+                                        {activeThreatCount > 0 && <span className="ml-1.5 w-1.5 h-1.5 rounded-full bg-red-500 animate-ping"></span>}
+                                    </span>
+                                    <span className={`text-lg font-bold mt-1 code-font ${activeThreatCount > 0 ? 'text-red-400 glow-text-red' : 'text-gray-300'}`}>{activeThreatCount} groups</span>
+                                </div>
+                                <div className="bg-slate-950/80 border border-cyber-border rounded-lg p-4 flex flex-col justify-center">
+                                    <span className="text-[10px] text-gray-500 font-semibold tracking-wider uppercase">Critical Incidents</span>
+                                    <span className={`text-lg font-bold mt-1 code-font ${criticalAlertCount > 0 ? 'text-red-500 glow-text-red' : 'text-gray-300'}`}>{criticalAlertCount}</span>
+                                </div>
+                                <div className="bg-slate-950/80 border border-cyber-border rounded-lg p-4 flex flex-col justify-center">
+                                    <span className="text-[10px] text-gray-500 font-semibold tracking-wider uppercase">Zero-Day Outliers</span>
+                                    <span className="text-lg font-bold text-sky-400 mt-1 code-font glow-text-blue">{zeroDayCount} anomalies</span>
+                                </div>
+                                <div className="bg-slate-950/80 border border-cyber-border rounded-lg p-4 flex flex-col justify-center">
+                                    <span className="text-[10px] text-gray-500 font-semibold tracking-wider uppercase">Average Risk Rating</span>
+                                    <span className="text-lg font-bold text-yellow-500 mt-1 code-font glow-text-warning">{avgRiskScore}/100</span>
+                                </div>
+                                <div className="bg-slate-950/80 border border-cyber-border rounded-lg p-4 flex flex-col justify-center">
+                                    <span className="text-[10px] text-gray-500 font-semibold tracking-wider uppercase">Model Accuracy</span>
+                                    <span className="text-lg font-bold text-emerald-400 mt-1 code-font glow-text-green">96.82% (RF)</span>
+                                </div>
+                            </div>
+
+                            {/* Column Left (4 columns): Clustered Incidents & Simulators */}
+                            <div className="lg:col-span-4 flex flex-col space-y-6 h-[800px] overflow-hidden">
+                                
+                                {/* Incident Clusters Panel */}
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-4 flex-grow flex flex-col overflow-hidden">
+                                    <div className="flex justify-between items-center mb-3">
+                                        <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+                                            <i data-lucide="layers" className="w-4 h-4 text-sky-500 mr-1.5"></i>
+                                            Clustered Threat Incidents
+                                        </h3>
+                                        <span className="text-[10px] text-gray-500 code-font">Alert Fatigue Reduction</span>
+                                    </div>
+                                    <div className="space-y-2 overflow-y-auto flex-grow pr-1">
+                                        {incidents.map((inc) => {
+                                            const isSelected = selectedIncident?.id === inc.id;
+                                            const risk = inc.overall_risk_score;
+                                            let riskColor = 'border-cyber-primary';
+                                            if (risk > 80) riskColor = 'border-red-600 bg-red-950/10';
+                                            else if (risk > 60) riskColor = 'border-yellow-600 bg-yellow-950/10';
+
+                                            return (
+                                                <div 
+                                                    key={inc.id}
+                                                    onClick={() => handleSelectIncident(inc)}
+                                                    className={`cursor-pointer border p-3 rounded transition hover:border-sky-500/80 flex flex-col ${isSelected ? 'border-sky-500 bg-sky-950/10 shadow-neon-blue' : 'border-cyber-border bg-slate-900/30'}`}
+                                                >
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-xs font-semibold text-white truncate max-w-[70%]">{inc.title}</span>
+                                                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${inc.overall_risk_score > 80 ? 'bg-red-500/20 text-red-400' : 'bg-yellow-500/20 text-yellow-400'}`}>
+                                                            Risk: {inc.overall_risk_score}
+                                                        </span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center mt-2.5 text-[10px] text-gray-500 code-font">
+                                                        <span>Tactics: {inc.mitre_tactic}</span>
+                                                        <span>{inc.alerts.length} events</span>
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                </div>
+                                
+                                {/* Threat Vector Heatmap Summary */}
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-4">
+                                    <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase mb-3 flex items-center">
+                                        <i data-lucide="grid" className="w-4 h-4 text-emerald-500 mr-1.5"></i>
+                                        Threat Node Heatmap
+                                    </h3>
+                                    <div className="grid grid-cols-5 gap-1.5">
+                                        {['ATM', 'POS', 'SWIFT', 'CCTV', 'Internal'].map((node, idx) => {
+                                            // Count instances
+                                            const matches = alerts.filter(a => a.asset_context?.type?.includes(node) || a.asset_context?.name?.includes(node));
+                                            const matchesCount = matches.length;
+                                            const maxRisk = matches.length > 0 ? Math.max(...matches.map(a => a.risk_score)) : 0;
+                                            
+                                            let nodeColor = 'bg-slate-900 border-cyber-border';
+                                            if (matchesCount > 0) {
+                                                if (maxRisk > 80) nodeColor = 'bg-red-950/60 border-red-500/50 text-red-400 shadow-neon-red';
+                                                else if (maxRisk > 60) nodeColor = 'bg-yellow-950/60 border-yellow-500/50 text-yellow-400';
+                                                else nodeColor = 'bg-emerald-950/60 border-emerald-500/50 text-emerald-400';
+                                            }
+                                            return (
+                                                <div key={idx} className={`border p-2 rounded text-center text-[10px] font-bold ${nodeColor}`}>
+                                                    <div className="text-[9px] text-gray-500 truncate">{node}</div>
+                                                    <div className="mt-1">{matchesCount} alerts</div>
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Column Center-Right (8 columns): Details, Timeline, MITRE Matrix, SHAP Waterfall, Business Impact, Zero-Day */}
+                            <div className="lg:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-6 h-[800px] overflow-y-auto pr-1">
+                                
+                                {/* Selected Incident Overview & Timeline */}
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 flex flex-col space-y-4">
+                                    <div className="flex justify-between items-start">
+                                        <div>
+                                            <h3 className="text-sm font-semibold text-white">{selectedIncident ? selectedIncident.title : 'Incident Detail'}</h3>
+                                            <span className="text-[10px] text-gray-500 code-font block mt-0.5">ID: {selectedIncident?.id}</span>
+                                        </div>
+                                        <span className="text-xs bg-sky-500/20 text-sky-400 border border-sky-800/40 px-2 py-0.5 rounded code-font">
+                                            {selectedIncident?.status}
+                                        </span>
+                                    </div>
+
+                                    {/* Threat Evolution Timeline */}
+                                    <div className="bg-slate-900/40 border border-cyber-border rounded p-4">
+                                        <h4 className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase mb-3 flex items-center">
+                                            <i data-lucide="git-commit" className="w-3.5 h-3.5 text-sky-500 mr-1.5"></i>
+                                            Threat Timeline & Escalation
+                                        </h4>
+                                        <div className="space-y-4 relative pl-3.5 border-l border-cyber-border">
+                                            {selectedIncident?.alerts.map((al, index) => (
+                                                <div key={index} className="relative text-xs">
+                                                    {/* Timeline node */}
+                                                    <div className={`absolute -left-[20.5px] top-1 w-2.5 h-2.5 rounded-full ${al.risk_score > 80 ? 'bg-red-500' : 'bg-yellow-500'}`}></div>
+                                                    <div className="flex justify-between items-center text-[10px] code-font text-gray-500">
+                                                        <span>{al.timestamp.slice(11, 19)}</span>
+                                                        <span className="text-sky-400">{al.source_ip} &rarr; {al.dest_ip}</span>
+                                                    </div>
+                                                    <div className="mt-1 text-gray-300">
+                                                        Flow prediction: <strong className="text-white">{al.attack_class}</strong> (Confidence: {al.confidence.toFixed(1)}%)
+                                                    </div>
+                                                </div>
+                                            ))}
+                                            {/* Resolution projection node */}
+                                            <div className="relative text-xs text-gray-500 italic pl-0">
+                                                <div className="absolute -left-[20.5px] top-1 w-2.5 h-2.5 rounded-full border border-cyber-border bg-slate-950"></div>
+                                                <span>Escalation path active. Mitigation commands queued.</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    
+                                    {/* MITRE ATT&CK Mapping Grid */}
+                                    <div className="bg-slate-900/40 border border-cyber-border rounded p-4">
+                                        <h4 className="text-[10px] text-gray-400 font-semibold tracking-wider uppercase mb-3 flex items-center">
+                                            <i data-lucide="layout-grid" className="w-3.5 h-3.5 text-emerald-500 mr-1.5"></i>
+                                            MITRE ATT&CK Mapping
+                                        </h4>
+                                        <div className="grid grid-cols-3 gap-2">
+                                            <div className="bg-slate-950 border border-cyber-border p-2 rounded">
+                                                <span className="text-[9px] text-gray-500 block uppercase">Tactic</span>
+                                                <span className="text-xs font-semibold text-white">{selectedIncident?.mitre_tactic}</span>
+                                            </div>
+                                            <div className="bg-slate-950 border border-cyber-border p-2 rounded col-span-2">
+                                                <span className="text-[9px] text-gray-500 block uppercase">Technique</span>
+                                                <span className="text-xs font-semibold text-white truncate block">{selectedIncident?.mitre_technique}</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Explainable AI - SHAP Local explanation waterfall */}
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 flex flex-col justify-between">
+                                    <div>
+                                        <div className="flex justify-between items-center mb-1">
+                                            <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+                                                <i data-lucide="eye" className="w-4 h-4 text-sky-500 mr-1.5"></i>
+                                                SHAP Local Explanation
+                                            </h3>
+                                            <span className="text-[10px] text-sky-400 code-font">Model Interpretability</span>
+                                        </div>
+                                        <p className="text-[10px] text-gray-500 mb-4">Driving attributes causing prediction: <strong>{selectedAlert?.attack_class}</strong></p>
+                                    </div>
+
+                                    {/* SVG-based Waterfall chart */}
+                                    <div className="space-y-3 my-2 flex-grow flex flex-col justify-center">
+                                        {selectedAlert?.shap_explanation ? (
+                                            Object.entries(selectedAlert.shap_explanation)
+                                                .sort((a,b) => Math.abs(b[1]) - Math.abs(a[1]))
+                                                .slice(0, 5)
+                                                .map(([key, val], idx) => {
+                                                    const isPositive = val > 0;
+                                                    const percent = Math.min(100, Math.abs(val) * 150); // scaled for display
+                                                    return (
+                                                        <div key={idx} className="space-y-1">
+                                                            <div className="flex justify-between text-[10px] code-font">
+                                                                <span className="text-gray-400">{key}</span>
+                                                                <span className={isPositive ? 'text-red-400' : 'text-sky-400'}>
+                                                                    {isPositive ? '+' : ''}{val.toFixed(4)}
+                                                                </span>
+                                                            </div>
+                                                            <div className="w-full bg-slate-900 h-2.5 rounded overflow-hidden relative">
+                                                                <div 
+                                                                    className={`h-full rounded ${isPositive ? 'bg-gradient-to-r from-red-600 to-red-400 shadow-neon-red' : 'bg-gradient-to-r from-sky-600 to-sky-400'}`}
+                                                                    style="width:50%;"
+                                                                ></div>
+                                                            </div>
+                                                        </div>
+                                                    );
+                                                })
+                                        ) : (
+                                            <div className="text-xs text-gray-600 text-center italic">No explanation file loaded.</div>
+                                        )}
+                                    </div>
+
+                                    <div className="text-[10px] text-gray-500 mt-2 border-t border-cyber-border/40 pt-3 leading-relaxed">
+                                        <i data-lucide="info" className="w-3.5 h-3.5 inline mr-1 text-sky-400"></i>
+                                        Positive SHAP weights pull the model toward an attack decision, while negative weights push it toward normal profiles.
+                                    </div>
+                                </div>
+
+                                {/* Business Impact Panel */}
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 space-y-4">
+                                    <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+                                        <i data-lucide="bank" className="w-4 h-4 text-emerald-400 mr-1.5"></i>
+                                        Banking Business Impact
+                                    </h3>
+                                    
+                                    <div className="space-y-3">
+                                        <div className="bg-slate-900 border border-cyber-border p-3.5 rounded">
+                                            <span className="text-[9px] text-gray-500 uppercase block font-semibold">Banking Context Translation</span>
+                                            <span className="text-xs font-bold text-white block mt-1">{selectedAlert?.business_impact_translation?.impact_title}</span>
+                                        </div>
+
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="bg-slate-900 border border-cyber-border p-3 rounded">
+                                                <span className="text-[9px] text-gray-500 uppercase block">Financial Exposure</span>
+                                                <span className="text-sm font-extrabold text-red-400 block mt-1 code-font">
+                                                    ${selectedAlert?.business_impact_translation?.financial_exposure?.toLocaleString()}
+                                                </span>
+                                            </div>
+                                            <div className="bg-slate-900 border border-cyber-border p-3 rounded">
+                                                <span className="text-[9px] text-gray-500 uppercase block">Target Host</span>
+                                                <span className="text-xs font-bold text-white block mt-1 truncate">{selectedAlert?.asset_context?.name}</span>
+                                            </div>
+                                        </div>
+
+                                        <div className="bg-slate-900 border border-cyber-border p-3 rounded">
+                                            <span className="text-[9px] text-gray-500 uppercase block font-semibold">Automated Mitigation Play</span>
+                                            <span className="text-[10px] code-font text-emerald-400 block mt-1.5 leading-relaxed">
+                                                {selectedAlert?.business_impact_translation?.action}
+                                            </span>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                {/* Zero-Day Detection Panel (Isolation Forest) */}
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 space-y-4">
+                                    <div className="flex justify-between items-center">
+                                        <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+                                            <i data-lucide="search" className="w-4 h-4 text-sky-400 mr-1.5"></i>
+                                            Zero-Day Anomaly (Isolation Forest)
+                                        </h3>
+                                        <span className="text-[9px] text-gray-500 code-font">Unsupervised Profiler</span>
+                                    </div>
+
+                                    <div className="grid grid-cols-3 gap-2.5">
+                                        <div className="bg-slate-900 border border-cyber-border p-3 rounded text-center">
+                                            <span className="text-[9px] text-gray-500 block uppercase">Anomaly Index</span>
+                                            <span className="text-sm font-extrabold text-white mt-1.5 block code-font">
+                                                {selectedAlert?.anomaly_score?.toFixed(1)}/100
+                                            </span>
+                                        </div>
+                                        <div className="bg-slate-900 border border-cyber-border p-3 rounded text-center">
+                                            <span className="text-[9px] text-gray-500 block uppercase">Novelty</span>
+                                            <span className="text-xs font-bold text-sky-400 mt-2 block uppercase tracking-wide">
+                                                {selectedAlert?.anomaly_score > 70 ? 'High' : 'Normal'}
+                                            </span>
+                                        </div>
+                                        <div className="bg-slate-900 border border-cyber-border p-3 rounded text-center">
+                                            <span className="text-[9px] text-gray-500 block uppercase">Behavior Class</span>
+                                            <span className="text-[10px] font-bold text-white mt-2 block truncate">
+                                                {selectedAlert?.anomaly_score > 75 ? 'Out of Bounds' : 'Known Baseline'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className="text-[10px] text-gray-500 bg-slate-900/50 border border-cyber-border p-3 rounded leading-relaxed">
+                                        {selectedAlert?.anomaly_score > 75 ? (
+                                            <span className="text-red-400 font-semibold flex items-center">
+                                                <i data-lucide="alert-triangle" className="w-3.5 h-3.5 mr-1.5 inline"></i>
+                                                Flagged: Unsupervised Isolation Forest suggests this flow is highly anomalous compared to typical bank transaction signatures.
+                                            </span>
+                                        ) : (
+                                            <span>
+                                                Flow aligns with standard baseline vectors. No zero-day anomalies identified.
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Security Copilot 2.0 Panel - Spans 2 columns */}
+                                <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 md:col-span-2 flex flex-col space-y-4 h-[450px]">
+                                    <div className="flex justify-between items-center border-b border-cyber-border/40 pb-3">
+                                        <div className="flex items-center space-x-2">
+                                            <div className="w-6 h-6 rounded bg-gradient-to-tr from-sky-500 to-emerald-500 flex items-center justify-center">
+                                                <i data-lucide="bot" className="text-white w-4 h-4"></i>
+                                            </div>
+                                            <h3 className="text-xs font-semibold text-white tracking-wider uppercase">Security Copilot 2.0 Console</h3>
+                                        </div>
+                                        <span className="text-[9px] text-sky-400 code-font">Reasoning Engine Active</span>
+                                    </div>
+
+                                    {/* Chat history */}
+                                    <div className="flex-grow overflow-y-auto space-y-3 bg-slate-900/30 border border-cyber-border p-4 rounded pr-2">
+                                        {copilotHistory.map((item, idx) => (
+                                            <div key={idx} className={`flex flex-col ${item.sender === 'user' ? 'items-end' : 'items-start'}`}>
+                                                <div className={`p-3 rounded text-xs leading-relaxed max-w-[85%] ${item.sender === 'user' ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30' : 'bg-slate-900 text-gray-300 border border-cyber-border'}`}>
+                                                    {item.sender === 'copilot' ? (
+                                                        formatCopilotResponse(item.text)
+                                                    ) : (
+                                                        <span className="code-font">{item.text}</span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        ))}
+                                        {copilotLoading && (
+                                            <div className="flex items-center space-x-2 text-xs text-gray-500 italic pl-1">
+                                                <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-ping"></span>
+                                                <span>Analyzing SHAP vectors and computing risk explanation...</span>
+                                            </div>
+                                        )}
+                                    </div>
+
+                                    {/* Quick prompts & Input */}
+                                    <div className="space-y-2">
+                                        <div className="flex space-x-2 text-[10px] overflow-x-auto pb-1">
+                                            <button 
+                                                onClick={() => handleAskCopilot("Why was this attack classified as critical?")}
+                                                className="border border-cyber-border hover:border-sky-500/60 rounded px-2.5 py-1 bg-slate-900 text-gray-300 whitespace-nowrap"
+                                            >
+                                                Why was this classified?
+                                            </button>
+                                            <button 
+                                                onClick={() => handleAskCopilot("Show top risk factors.")}
+                                                className="border border-cyber-border hover:border-sky-500/60 rounded px-2.5 py-1 bg-slate-900 text-gray-300 whitespace-nowrap"
+                                            >
+                                                Show risk factors
+                                            </button>
+                                            <button 
+                                                onClick={() => handleAskCopilot("What is the recommended action plan?")}
+                                                className="border border-cyber-border hover:border-sky-500/60 rounded px-2.5 py-1 bg-slate-900 text-gray-300 whitespace-nowrap"
+                                            >
+                                                Get mitigation plan
+                                            </button>
+                                        </div>
+
+                                        <div className="flex space-x-2">
+                                            <input 
+                                                type="text" 
+                                                value={copilotInput}
+                                                onChange={(e) => setCopilotInput(e.target.value)}
+                                                placeholder="Ask copilot about the selected threat cluster..."
+                                                className="flex-grow bg-slate-900 border border-cyber-border rounded px-3 py-2 text-xs text-white outline-none focus:border-sky-500 focus:shadow-neon-blue"
+                                                onKeyDown={(e) => { if (e.key === 'Enter') handleAskCopilot(); }}
+                                            />
+                                            <button 
+                                                onClick={() => handleAskCopilot()}
+                                                className="bg-sky-600 hover:bg-sky-500 text-white rounded px-4 py-2 text-xs font-semibold flex items-center space-x-1"
+                                            >
+                                                <span>Send</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                            </div>
+                        </div>
+                    )}
+                </div>
+            );
+        }
+
+        // Mock threat reports for displaying in the Threat Intel Sub-View
+        function ThreatIntelligenceCenter_MockDaily(intel) {
+            let activeTacticsStr = '';
+            Object.entries(intel.mitre_matrix).forEach(([tactic, data]) => {
+                if (data.status === 'Active') {
+                    activeTacticsStr += `- Tactic: ${tactic} | Count: ${data.alerts_count} | Technique: ${data.techniques[0]}\n`;
+                }
+            });
+
+            return `# BANKSHIELD AI - DAILY THREAT INTELLIGENCE SUMMARY
+Generated at: 2026-06-19 12:00:00 UTC
+Report Scope: Past 24 Hours
+Total Intrusion Events Flagged: ${intel.total_alerts} events
+
+## Executive Operational Summary
+During the last 24 hours, the BankShield AI platform analyzed network transactions crossing branch banking VLANs. The network remained overall stable; however, machine learning classifiers caught suspicious behaviors targeting ATM terminals and SWIFT gateways.
+
+## Attacker Source Attribution
+The top external and internal threat actor endpoints scanning or attacking the systems:
+${intel.top_sources.map(s => `- Source IP: ${s.ip} | Event Count: ${s.count}`).join('\n')}
+
+## Vector Risk Analysis
+The classification of malicious patterns sorted by overall risk:
+${intel.dangerous_classes.map(c => `- Class: ${c.class} | Count: ${c.count} | Avg Risk: ${c.avg_risk}/100`).join('\n')}
+
+## MITRE ATT&CK Matrix Alignment
+Active Tactics identified in the SOC:
+${activeTacticsStr}`;
+        }
+
+        function ThreatIntelligenceCenter_MockWeekly() {
+            return `# BANKSHIELD AI - WEEKLY ANALYTICAL THREAT REPORT
+Week Ending: 2026-06-19
+Classification: STRICTLY CONFIDENTIAL - SECURITY OPS
+
+## 1. Threat Evolution & Analytical Trends
+Weekly aggregate intrusion analysis demonstrates minor activity spikes compared to prior metrics. The implementation of SMOTE class-balancing and Random Forest feature selection has allowed our SOC to filter out normal branch transaction traffic and focus attention on low-frequency high-impact events.
+
+## 2. Threat Vector Breakdown
+Historically, Exploits and DoS are the highest-frequency threats, while Worms and Backdoors present the highest single-flow financial risk due to lateral movement parameters.
+
+## 3. Incident Clustering Efficiency (Alert Fatigue)
+By grouping alerts via temporal sliding windows and host entity relationships, we have condensed hundreds of independent packets into isolated incident cases, reducing SOC alert review volume by over 85%.
+
+## 4. Zero-Day Anomaly Detection Audit
+Isolation Forest flagged potential zero-day threats in branch VLAN subnets. The novelty index shows these events contained non-standard port pairings which did not match typical signature-based models. These events are undergoing reverse engineering sandboxing.`;
+        }
+
+        // Render React components
+        const container = document.getElementById('root');
+        const root = ReactDOM.createRoot(container);
+        root.render(<App />);
+    </script>
+</body>
+</html>
