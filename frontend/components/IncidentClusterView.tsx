@@ -25,16 +25,19 @@ interface IncidentClusterViewProps {
 
 export default function IncidentClusterView({ incidents, selectedId, onSelectIncident }: IncidentClusterViewProps) {
   return (
-    <div className="bg-slate-950 border border-cyber-border rounded-lg p-4 flex flex-col h-full overflow-hidden">
-      <div className="flex justify-between items-center mb-3">
-        <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+    <div className="soc-card p-4 flex flex-col h-full overflow-hidden flex-grow">
+      <div className="soc-card-header !mb-3 !pb-2">
+        <h3 className="soc-card-title">
           <Layers className="w-4 h-4 text-sky-500 mr-1.5" />
           Clustered Threat Incidents
         </h3>
         <span className="text-[10px] text-gray-500 code-font">Alert Fatigue Reduction</span>
       </div>
 
-      <div className="space-y-2 overflow-y-auto flex-grow pr-1">
+      <div className="space-y-2 overflow-y-auto flex-grow pr-1 soc-panel-scroll">
+        {incidents.length === 0 && (
+          <p className="text-xs text-gray-600 italic text-center py-8">No active incidents. System nominal.</p>
+        )}
         {incidents.map((inc) => {
           const isSelected = selectedId === inc.id;
           const risk = inc.overall_risk_score;

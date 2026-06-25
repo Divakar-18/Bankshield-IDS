@@ -11,7 +11,7 @@ interface ShapWaterfallProps {
 export default function ShapWaterfall({ shapExplanation, predictionClass }: ShapWaterfallProps) {
   if (!shapExplanation) {
     return (
-      <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 text-center py-12 text-xs text-gray-500 italic">
+      <div className="soc-card p-5 text-center py-12 text-xs text-gray-500 italic">
         Select a threat node to visualize feature attributions.
       </div>
     );
@@ -23,10 +23,10 @@ export default function ShapWaterfall({ shapExplanation, predictionClass }: Shap
     .slice(0, 5);
 
   return (
-    <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 flex flex-col justify-between">
+    <div className="soc-card p-5 flex flex-col justify-between">
       <div>
-        <div className="flex justify-between items-center mb-1">
-          <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+        <div className="soc-card-header !mb-1">
+          <h3 className="soc-card-title">
             <Eye className="w-4 h-4 text-sky-500 mr-1.5" />
             SHAP Explainable AI Waterfall
           </h3>

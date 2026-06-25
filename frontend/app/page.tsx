@@ -22,9 +22,9 @@ export default function LandingPage() {
             BANKSHIELD<span className="text-sky-500">AI</span>
           </span>
         </div>
-        <div className="flex items-center space-x-2 text-xs code-font text-sky-400 bg-sky-950/40 border border-sky-900/40 px-3 py-1.5 rounded-full">
+        <div className="flex items-center space-x-2 text-xs code-font text-emerald-400 bg-emerald-950/30 border border-emerald-900/40 px-3 py-1.5 rounded-full">
           <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span>Inference System Calibrated</span>
+          <span>SOC Console Ready · Inference Calibrated</span>
         </div>
       </header>
 
@@ -33,7 +33,7 @@ export default function LandingPage() {
         <div className="lg:col-span-6 space-y-6">
           <div className="inline-flex items-center space-x-2 bg-sky-950/30 border border-sky-800/40 px-3 py-1 rounded text-xs text-sky-400 font-semibold tracking-wider uppercase">
             <Activity className="w-3.5 h-3.5" />
-            <span>Research-Grade Threat Mitigation</span>
+            <span>Banking Security Operations Center</span>
           </div>
           <h1 className="text-4xl md:text-6xl font-extrabold tracking-tight text-white leading-none">
             AI-Powered Banking <br />
@@ -48,7 +48,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap gap-4 pt-2">
             <Link href="/dashboard">
               <button className="px-8 py-4 bg-gradient-to-r from-sky-600 to-sky-500 hover:from-sky-500 hover:to-sky-400 rounded text-sm font-semibold tracking-wide shadow-neon-blue transition duration-200 flex items-center space-x-2 text-white">
-                <span>Launch Dashboard</span>
+                <span>Launch SOC Dashboard</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </Link>

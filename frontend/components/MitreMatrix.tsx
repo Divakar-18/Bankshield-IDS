@@ -58,9 +58,9 @@ export default function MitreMatrix({ activeTactic, activeTechnique }: MitreMatr
   ];
 
   return (
-    <div className="bg-slate-950 border border-cyber-border rounded-lg p-5">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+    <div className="soc-card p-5">
+      <div className="soc-card-header">
+        <h3 className="soc-card-title">
           <Layers className="w-4 h-4 text-emerald-500 mr-1.5" />
           MITRE ATT&CK Mapping Matrix
         </h3>

@@ -3,12 +3,190 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --soc-bg: #020617;
+    --soc-surface: #0f172a;
+    --soc-card: rgba(15, 23, 42, 0.85);
+    --soc-border: #1e293b;
+    --soc-border-active: #0ea5e9;
+    --soc-primary: #0ea5e9;
+    --soc-success: #10b981;
+    --soc-warning: #f59e0b;
+    --soc-danger: #ef4444;
+    --soc-accent: #6366f1;
+    --soc-text-muted: #64748b;
+  }
+
   body {
-    background-color: #030712;
-    color: #f3f4f6;
+    background-color: var(--soc-bg);
+    color: #f1f5f9;
+    font-family: var(--font-inter, ui-sans-serif, system-ui, sans-serif);
   }
 }
 
-.code-font {
-  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+@layer components {
+  /* Background grid overlay */
+  .soc-grid-bg {
+    background-image:
+      linear-gradient(rgba(14, 165, 233, 0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(14, 165, 233, 0.03) 1px, transparent 1px);
+    background-size: 32px 32px;
+  }
+
+  /* Primary panel card */
+  .soc-card {
+    @apply bg-slate-950/80 border border-cyber-border rounded-lg backdrop-blur-sm;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 4px 24px rgba(0, 0, 0, 0.25);
+  }
+
+  .soc-card-header {
+    @apply flex justify-between items-center border-b border-cyber-border/50 pb-3 mb-4;
+  }
+
+  .soc-card-title {
+    @apply text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center;
+  }
+
+  /* KPI metric cards */
+  .soc-kpi-card {
+    @apply soc-card p-4 flex flex-col justify-center relative overflow-hidden min-h-[88px];
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+
+  .soc-kpi-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--kpi-accent, #0ea5e9), transparent);
+    opacity: 0.65;
+  }
+
+  .soc-kpi-card:hover {
+    border-color: rgba(14, 165, 233, 0.35);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 0 20px rgba(14, 165, 233, 0.08);
+  }
+
+  /* Status bar shell */
+  .soc-status-bar {
+    @apply border-b border-cyber-border bg-slate-950/90 backdrop-blur-md sticky top-0 z-20;
+  }
+
+  .soc-status-strip {
+    @apply px-6 py-1.5 flex items-center justify-between text-[10px] code-font border-b border-cyber-border/30 bg-slate-900/50;
+  }
+
+  /* Threat simulator toolbar */
+  .soc-toolbar {
+    @apply relative z-10 px-6 py-2.5 border-b border-cyber-border/50 bg-slate-950/60 backdrop-blur-sm;
+  }
+
+  /* SOC footer strip */
+  .soc-footer {
+    @apply relative z-10 border-t border-cyber-border/40 px-6 py-2 bg-slate-950/80;
+  }
+
+  /* Inner stat blocks inside panels */
+  .soc-inner-stat {
+    @apply bg-slate-900/80 border border-cyber-border rounded;
+  }
+
+  /* Simulate attack buttons */
+  .soc-btn-simulate {
+    @apply px-3 py-1.5 bg-slate-900/80 border border-cyber-border rounded text-[10px] font-bold code-font text-sky-400 transition disabled:opacity-50;
+  }
+
+  .soc-btn-simulate:hover:not(:disabled) {
+    @apply bg-red-950/30 border-red-500/40 text-red-400;
+  }
+
+  /* Copilot quick-action chips */
+  .soc-btn-chip {
+    @apply border border-cyber-border rounded px-2.5 py-1 bg-slate-900 text-gray-300 whitespace-nowrap transition;
+  }
+
+  .soc-btn-chip:hover {
+    @apply border-sky-500/60 text-sky-300;
+  }
+
+  /* Chat bubbles */
+  .soc-chat-user {
+    @apply bg-sky-500/20 text-sky-300 border border-sky-500/30;
+  }
+
+  .soc-chat-copilot {
+    @apply bg-slate-900 text-gray-300 border border-cyber-border;
+  }
+
+  /* Form input */
+  .soc-input {
+    @apply bg-slate-900 border border-cyber-border rounded px-3 py-2 text-xs text-white outline-none transition;
+  }
+
+  .soc-input:focus {
+    @apply border-sky-500;
+  }
+
+  /* Live status indicator */
+  .soc-status-dot {
+    @apply w-2 h-2 rounded-full shrink-0;
+  }
+
+  .soc-status-dot-live {
+    @apply bg-emerald-400;
+    animation: soc-pulse 2s ease-in-out infinite;
+  }
+
+  /* Scrollable analyst panels */
+  .soc-panel-scroll {
+    scrollbar-width: thin;
+    scrollbar-color: #334155 transparent;
+  }
+
+  .soc-panel-scroll::-webkit-scrollbar {
+    width: 4px;
+  }
+
+  .soc-panel-scroll::-webkit-scrollbar-thumb {
+    background: #334155;
+    border-radius: 4px;
+  }
+
+  /* Threat level badge variants */
+  .soc-threat-normal {
+    @apply text-emerald-400 bg-emerald-950/50 border-emerald-500/40;
+  }
+
+  .soc-threat-guarded {
+    @apply text-sky-400 bg-sky-950/50 border-sky-500/40;
+  }
+
+  .soc-threat-elevated {
+    @apply text-yellow-400 bg-yellow-950/50 border-yellow-500/40;
+  }
+
+  .soc-threat-critical {
+    @apply text-red-400 bg-red-950/50 border-red-500/40;
+  }
+}
+
+@layer utilities {
+  .code-font {
+    font-family: var(--font-mono, ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace);
+  }
+
+  .soc-glow-blue {
+    box-shadow: 0 0 20px rgba(14, 165, 233, 0.15);
+  }
+
+  .soc-glow-red {
+    box-shadow: 0 0 20px rgba(239, 68, 68, 0.15);
+  }
+}
+
+@keyframes soc-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(0.85); }
 }

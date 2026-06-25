@@ -25,8 +25,8 @@ export default function ThreatHeatmap({ alerts }: ThreatHeatmapProps) {
   ];
 
   return (
-    <div className="bg-slate-950 border border-cyber-border rounded-lg p-5">
-      <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase mb-4 flex items-center">
+    <div className="soc-card p-5">
+      <h3 className="soc-card-title mb-4">
         <Grid className="w-4 h-4 text-sky-500 mr-1.5" />
         Subnet Threat Density Node Heatmap
       </h3>

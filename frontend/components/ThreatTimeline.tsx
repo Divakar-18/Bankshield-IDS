@@ -28,16 +28,16 @@ interface ThreatTimelineProps {
 export default function ThreatTimeline({ incident }: ThreatTimelineProps) {
   if (!incident) {
     return (
-      <div className="bg-slate-950 border border-cyber-border rounded-lg p-5 text-center py-12 text-xs text-gray-500 italic">
+      <div className="soc-card p-5 text-center py-12 text-xs text-gray-500 italic">
         Select an incident from the security console to visualize threat timeline.
       </div>
     );
   }
 
   return (
-    <div className="bg-slate-950 border border-cyber-border rounded-lg p-5">
-      <div className="flex justify-between items-center mb-4">
-        <h3 className="text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center">
+    <div className="soc-card p-5">
+      <div className="soc-card-header">
+        <h3 className="soc-card-title">
           <GitCommit className="w-4 h-4 text-sky-500 mr-1.5" />
           Threat Evolution & Timeline
         </h3>
