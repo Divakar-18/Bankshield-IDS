@@ -7,6 +7,7 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import os
 
 st.set_page_config(
     page_title="BankShield AI | Banking Security Operations Center",
@@ -15,7 +16,10 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-API_BASE_URL = "http://127.0.0.1:8000/api/v1"
+API_BASE_URL = os.getenv(
+    "API_BASE_URL",
+    "http://127.0.0.1:8000/api/v1"
+)
 
 # =============================================================================
 # Enterprise SOC Design System — Final Polish
