@@ -714,6 +714,24 @@ with st.sidebar:
 ATTACK_CLASSES = ["Normal", "Generic", "Exploits", "Fuzzers", "DoS", "Reconnaissance", "Analysis", "Backdoor", "Shellcode", "Worms"]
 
 # =============================================================================
+# Replay Sample Data — Cloud-compatible packet demo for Live Threat Monitoring
+# =============================================================================
+REPLAY_DATA = []
+for i in range(80):
+    ts = f"2024-06-15T08:{i//60:02d}:{i%60:02d}"
+    protos = ["TCP", "UDP", "ICMP", "HTTP", "HTTPS", "DNS", "SSH", "FTP"]
+    srcs = ["192.168.1.45", "192.168.1.102", "172.16.0.8", "10.0.0.5", "192.168.1.67", "172.16.0.22", "10.0.0.12", "192.168.1.200"]
+    dsts = ["10.0.0.5", "10.0.0.12", "192.168.1.1", "172.16.0.1", "10.0.0.8", "192.168.1.50", "172.16.0.15", "10.0.0.20"]
+    REPLAY_DATA.append({
+        "timestamp": ts,
+        "source_ip": srcs[i % len(srcs)],
+        "dest_ip": dsts[(i + 3) % len(dsts)],
+        "protocol": protos[i % len(protos)],
+        "length": [64, 128, 256, 512, 1024, 1500, 2048, 4096][i % 8],
+        "interface": "eth0" if i % 2 == 0 else "eth1"
+    })
+
+# =============================================================================
 # Helper: Network Topology from Alerts
 # =============================================================================
 def build_network_topology(alerts_data):
@@ -810,6 +828,105 @@ def build_threat_timeline(events, title="Threat Timeline"):
         yaxis=dict(showgrid=False, zeroline=False, showticklabels=False), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(15,23,42,0.3)', title=dict(text=title, font=dict(size=14, color="#e2e8f0"), x=0.02))
     return fig
 
+
+# =============================================================================
+# Helper: Shared Packet Live View (Live + Replay)
+# =============================================================================
+def _render_packet_live_view(packets, stats, is_replay=False):
+    """Display packet dashboard. Shared between Live and Replay modes."""
+    status_label = "Replay" if is_replay else "Live"
+    status_icon = "🟢" if is_replay else "🔴"
+    st.markdown(render_panel("Sniffer Status", status_label, status_icon), unsafe_allow_html=True)
+    col_m1, col_m2, col_m3 = st.columns(3)
+    with col_m1:
+        st.markdown('<div class="glass-card" style="min-height: 80px;">', unsafe_allow_html=True)
+        st.metric("Total Packets", stats.get("total_count", 0))
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col_m2:
+        st.markdown('<div class="glass-card" style="min-height: 80px;">', unsafe_allow_html=True)
+        st.metric("Interface", stats.get("interface", "Unknown"))
+        st.markdown('</div>', unsafe_allow_html=True)
+    with col_m3:
+        st.markdown('<div class="glass-card" style="min-height: 80px;">', unsafe_allow_html=True)
+        if is_replay:
+            status_str = "REPLAYING"
+            color = SOC_COLORS["success"]
+            st.markdown(f"**Status**<br/><span style='color:{color};font-size:1.6rem;font-weight:800;font-family:JetBrains Mono;'>{status_str}</span>", unsafe_allow_html=True)
+            st.markdown('<div style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 12px #10b981;margin-top:8px;animation:pulse 2s infinite;"></div>', unsafe_allow_html=True)
+        else:
+            status_str = "ACTIVE" if stats.get("is_running") else "STOPPED"
+            color = SOC_COLORS["success"] if stats.get("is_running") else SOC_COLORS["danger"]
+            st.markdown(f"**Status**<br/><span style='color:{color};font-size:1.6rem;font-weight:800;font-family:JetBrains Mono;'>{status_str}</span>", unsafe_allow_html=True)
+            if stats.get("is_running"):
+                st.markdown('<div style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 12px #10b981;margin-top:8px;animation:pulse 2s infinite;"></div>', unsafe_allow_html=True)
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    st.markdown("---")
+    if not packets:
+        if is_replay:
+            st.info("Replay buffer initialized. Waiting for next packet batch...")
+        else:
+            st.info("Sniffer thread active. Waiting for incoming host packet traffic on the network card...")
+        return
+
+    df_pkts = pd.DataFrame(packets)
+    df_pkts["Time"] = df_pkts["timestamp"].apply(lambda x: x[11:19] if isinstance(x, str) and len(x) > 11 else x)
+
+    col_ch1, col_ch2 = st.columns(2)
+    with col_ch1:
+        st.markdown(render_panel("Protocol Distribution"), unsafe_allow_html=True)
+        proto_counts = df_pkts["protocol"].value_counts().reset_index()
+        proto_counts.columns = ["protocol", "count"]
+        fig_pie = px.pie(proto_counts, names="protocol", values="count", hole=0.45, color_discrete_sequence=SOC_CHART_LAYOUT["colorway"])
+        apply_soc_chart_theme(fig_pie, height=260)
+        fig_pie.update_layout(margin=dict(t=10, b=10, l=10, r=10), showlegend=True)
+        st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
+    with col_ch2:
+        st.markdown(render_panel("Packet Traffic Rate"), unsafe_allow_html=True)
+        df_trends = df_pkts.groupby("Time").size().reset_index(name="Packet Count")
+        fig_trends = px.area(df_trends, x="Time", y="Packet Count", color_discrete_sequence=[SOC_COLORS["primary"]])
+        fig_trends.update_traces(line_color=SOC_COLORS["primary"], fillcolor="rgba(14, 165, 233, 0.2)", line=dict(width=3))
+        apply_soc_chart_theme(fig_trends, height=260)
+        fig_trends.update_layout(margin=dict(t=10, b=10, l=10, r=10))
+        st.plotly_chart(fig_trends, use_container_width=True, config={"displayModeBar": False})
+
+    st.markdown("---")
+    st.markdown(render_panel("Live Network Ingestion Stream", "Latest 100"), unsafe_allow_html=True)
+    df_display = df_pkts.copy()
+    df_display["Route"] = df_display["source_ip"] + " → " + df_display["dest_ip"]
+    df_display = df_display[["Time", "interface", "protocol", "Route", "length"]]
+    df_display.columns = ["Time", "Interface", "Protocol", "Network Route", "Length (Bytes)"]
+    display_soc_dataframe(df_display)
+
+    if is_replay:
+        st.markdown("---")
+        st.markdown(render_panel("Packet Arrival Timeline", "Replay"), unsafe_allow_html=True)
+        df_tl = df_pkts.copy()
+        df_tl["Label"] = df_tl["protocol"] + " | " + df_tl["source_ip"]
+        fig_tl = go.Figure()
+        for i, row in df_tl.iterrows():
+            fig_tl.add_trace(go.Scatter(
+                x=[row["Time"]], y=[i % 20],
+                mode="markers+text", text=[row["Label"]], textposition="top right",
+                marker=dict(size=10, color=SOC_COLORS["primary"], line=dict(width=1, color="rgba(255,255,255,0.3)")),
+                textfont=dict(size=8, color="#94a3b8"), showlegend=False
+            ))
+        fig_tl.update_layout(
+            xaxis=dict(title="Time", showgrid=True, gridcolor="rgba(30,41,59,0.5)", linecolor=SOC_COLORS["border"]),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(15,23,42,0.3)",
+            title=dict(text="Replay Packet Timeline", font=dict(size=14, color="#e2e8f0"), x=0.02)
+        )
+        st.plotly_chart(fig_tl, use_container_width=True, config={"displayModeBar": False})
+
+    st.markdown("---")
+    col_btn, _ = st.columns([1, 4])
+    with col_btn:
+        btn_label = "🔄 Advance Replay" if is_replay else "🔄 Force Refresh Stream"
+        if st.button(btn_label, use_container_width=True):
+            st.rerun()
+
+
 # ==========================================================
 # PAGE 1: SOC Command Center
 # ==========================================================
@@ -905,127 +1022,68 @@ if page == "SOC Command Center":
 if page == "Live Threat Monitoring":
     render_page_header("Live Threat Monitoring", "Real-time packet metadata capture via Scapy + Npcap on active network interfaces")
 
-    if hasattr(st, "fragment"):
-        @st.fragment(run_every=3.0)
-        def render_live_monitor():
+    # Detect if packet capture is available
+    data = fetch_api("live-packets")
+    is_live = data and not data.get("stats", {}).get("error_message")
+
+    if not is_live:
+        # Replay Mode — auto-activated when sniffer is unavailable
+        st.markdown('<span style="display:inline-flex;align-items:center;gap:8px;background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.4);border-radius:8px;padding:6px 14px;font-size:0.75rem;font-weight:700;text-transform:uppercase;letter-spacing:0.06em;box-shadow:0 0 20px rgba(16,185,129,0.1);margin-bottom:16px;"><span style="width:8px;height:8px;border-radius:50%;background:#10b981;box-shadow:0 0 10px #10b981;animation:pulse 2s infinite;"></span>Replay Mode (Cloud Demo)</span>', unsafe_allow_html=True)
+        if "replay_packets" not in st.session_state:
+            st.session_state.replay_packets = []
+        if "replay_index" not in st.session_state:
+            st.session_state.replay_index = 0
+
+        if hasattr(st, "fragment"):
+            @st.fragment(run_every=2.5)
+            def render_replay():
+                idx = st.session_state.replay_index
+                if idx < len(REPLAY_DATA):
+                    batch_size = 3
+                    new_batch = REPLAY_DATA[idx:idx + batch_size]
+                    st.session_state.replay_packets.extend(new_batch)
+                    st.session_state.replay_index = min(idx + batch_size, len(REPLAY_DATA))
+                packets = st.session_state.replay_packets
+                stats = {"total_count": len(packets), "interface": "REPLAY-ETH0", "is_running": True, "error_message": None}
+                _render_packet_live_view(packets, stats, is_replay=True)
+            render_replay()
+        else:
+            idx = st.session_state.replay_index
+            if idx < len(REPLAY_DATA):
+                batch_size = 3
+                new_batch = REPLAY_DATA[idx:idx + batch_size]
+                st.session_state.replay_packets.extend(new_batch)
+                st.session_state.replay_index = min(idx + batch_size, len(REPLAY_DATA))
+            packets = st.session_state.replay_packets
+            stats = {"total_count": len(packets), "interface": "REPLAY-ETH0", "is_running": True, "error_message": None}
+            _render_packet_live_view(packets, stats, is_replay=True)
+    else:
+        # Live Capture Mode — original behavior preserved for local execution
+        if hasattr(st, "fragment"):
+            @st.fragment(run_every=3.0)
+            def render_live_monitor():
+                data = fetch_api("live-packets")
+                if not data:
+                    st.warning("FastAPI Backend is offline or unreachable.")
+                    return
+                packets = data.get("packets", [])
+                stats = data.get("stats", {})
+                if stats.get("error_message"):
+                    st.error(f"Npcap/Scapy Sniffer Failed: {stats['error_message']}")
+                    st.info("The remaining BankShield AI modules continue running successfully. To run live capture, please verify that Npcap is installed and the application is running as Administrator.")
+                _render_packet_live_view(packets, stats, is_replay=False)
+            render_live_monitor()
+        else:
             data = fetch_api("live-packets")
             if not data:
-                st.warning("FastAPI Backend is offline or unreachable on port 8000.")
-                return
-            packets = data.get("packets", [])
-            stats = data.get("stats", {})
-            if stats.get("error_message"):
-                st.error(f"Npcap/Scapy Sniffer Failed: {stats['error_message']}")
-                st.info("The remaining BankShield AI modules continue running successfully. To run live capture, please verify that Npcap is installed on Windows 11 and the application is running as Administrator.")
-
-            # Glassmorphism status cards
-            st.markdown(render_panel("Sniffer Status", "Live", "🔴"), unsafe_allow_html=True)
-            col_m1, col_m2, col_m3 = st.columns(3)
-            with col_m1:
-                st.markdown('<div class="glass-card" style="min-height: 80px;">', unsafe_allow_html=True)
-                st.metric("Total Packets", stats.get("total_count", 0))
-                st.markdown('</div>', unsafe_allow_html=True)
-            with col_m2:
-                st.markdown('<div class="glass-card" style="min-height: 80px;">', unsafe_allow_html=True)
-                st.metric("Interface", stats.get("interface", "Unknown"))
-                st.markdown('</div>', unsafe_allow_html=True)
-            with col_m3:
-                st.markdown('<div class="glass-card" style="min-height: 80px;">', unsafe_allow_html=True)
-                status_str = "ACTIVE" if stats.get("is_running") else "STOPPED"
-                color = SOC_COLORS["success"] if stats.get("is_running") else SOC_COLORS["danger"]
-                st.markdown(f"**Status**<br/><span style='color:{color};font-size:1.6rem;font-weight:800;font-family:JetBrains Mono;'>{status_str}</span>", unsafe_allow_html=True)
-                if stats.get("is_running"):
-                    st.markdown('<div style="width:10px;height:10px;border-radius:50%;background:#10b981;box-shadow:0 0 12px #10b981;margin-top:8px;animation:pulse 2s infinite;"></div>', unsafe_allow_html=True)
-                st.markdown('</div>', unsafe_allow_html=True)
-
-            st.markdown("---")
-            if not packets:
-                st.info("Sniffer thread active. Waiting for incoming host packet traffic on the network card...")
-                return
-
-            df_pkts = pd.DataFrame(packets)
-            df_pkts["Time"] = df_pkts["timestamp"].apply(lambda x: x[11:19] if isinstance(x, str) and len(x) > 11 else x)
-
-            col_ch1, col_ch2 = st.columns(2)
-            with col_ch1:
-                st.markdown(render_panel("Protocol Distribution"), unsafe_allow_html=True)
-                proto_counts = df_pkts["protocol"].value_counts().reset_index()
-                proto_counts.columns = ["protocol", "count"]
-                fig_pie = px.pie(proto_counts, names="protocol", values="count", hole=0.45, color_discrete_sequence=SOC_CHART_LAYOUT["colorway"])
-                apply_soc_chart_theme(fig_pie, height=260)
-                fig_pie.update_layout(margin=dict(t=10, b=10, l=10, r=10), showlegend=True)
-                st.plotly_chart(fig_pie, use_container_width=True, config={"displayModeBar": False})
-            with col_ch2:
-                st.markdown(render_panel("Packet Traffic Rate"), unsafe_allow_html=True)
-                df_trends = df_pkts.groupby("Time").size().reset_index(name="Packet Count")
-                fig_trends = px.area(df_trends, x="Time", y="Packet Count", color_discrete_sequence=[SOC_COLORS["primary"]])
-                fig_trends.update_traces(line_color=SOC_COLORS["primary"], fillcolor="rgba(14, 165, 233, 0.2)", line=dict(width=3))
-                apply_soc_chart_theme(fig_trends, height=260)
-                fig_trends.update_layout(margin=dict(t=10, b=10, l=10, r=10))
-                st.plotly_chart(fig_trends, use_container_width=True, config={"displayModeBar": False})
-
-            st.markdown("---")
-            st.markdown(render_panel("Live Network Ingestion Stream", "Latest 100"), unsafe_allow_html=True)
-            df_display = df_pkts.copy()
-            df_display["Route"] = df_display["source_ip"] + " → " + df_display["dest_ip"]
-            df_display = df_display[["Time", "interface", "protocol", "Route", "length"]]
-            df_display.columns = ["Time", "Interface", "Protocol", "Network Route", "Length (Bytes)"]
-            display_soc_dataframe(df_display)
-            st.markdown("---")
-            col_btn, _ = st.columns([1, 4])
-            with col_btn:
-                if st.button("🔄 Force Refresh Stream", use_container_width=True):
-                    st.rerun()
-        render_live_monitor()
-    else:
-        data = fetch_api("live-packets")
-        if not data:
-            st.warning("FastAPI Backend is offline or unreachable on port 8000.")
-        else:
-            packets = data.get("packets", [])
-            stats = data.get("stats", {})
-            if stats.get("error_message"):
-                st.error(f"Npcap/Scapy Sniffer Failed: {stats['error_message']}")
-                st.info("The remaining BankShield AI modules continue running successfully.")
-            st.markdown(render_panel("Sniffer Status"), unsafe_allow_html=True)
-            col_m1, col_m2, col_m3 = st.columns(3)
-            with col_m1: st.metric("Total Packets Sniffed", stats.get("total_count", 0))
-            with col_m2: st.metric("Sniffing Interface", stats.get("interface", "Unknown"))
-            with col_m3:
-                status_str = "Active" if stats.get("is_running") else "Stopped"
-                color = SOC_COLORS["success"] if stats.get("is_running") else SOC_COLORS["danger"]
-                st.markdown(f"**Status**:<br/><span style='color:{color};font-weight:700;'>{status_str}</span>", unsafe_allow_html=True)
-            st.markdown("---")
-            if not packets:
-                st.info("Waiting for incoming host packet traffic...")
+                st.warning("FastAPI Backend is offline or unreachable.")
             else:
-                df_pkts = pd.DataFrame(packets)
-                df_pkts["Time"] = df_pkts["timestamp"].apply(lambda x: x[11:19] if isinstance(x, str) and len(x) > 11 else x)
-                col_ch1, col_ch2 = st.columns(2)
-                with col_ch1:
-                    st.markdown(render_panel("Protocol Distribution"), unsafe_allow_html=True)
-                    proto_counts = df_pkts["protocol"].value_counts().reset_index()
-                    proto_counts.columns = ["protocol", "count"]
-                    fig_pie = px.pie(proto_counts, names="protocol", values="count", hole=0.45, color_discrete_sequence=SOC_CHART_LAYOUT["colorway"])
-                    apply_soc_chart_theme(fig_pie, height=280)
-                    st.plotly_chart(fig_pie, use_container_width=True)
-                with col_ch2:
-                    st.markdown(render_panel("Packet Traffic Rate"), unsafe_allow_html=True)
-                    df_trends = df_pkts.groupby("Time").size().reset_index(name="Packet Count")
-                    fig_trends = px.area(df_trends, x="Time", y="Packet Count", color_discrete_sequence=[SOC_COLORS["primary"]])
-                    fig_trends.update_traces(line_color=SOC_COLORS["primary"], fillcolor="rgba(14, 165, 233, 0.2)", line=dict(width=3))
-                    apply_soc_chart_theme(fig_trends, height=280)
-                    st.plotly_chart(fig_trends, use_container_width=True)
-                st.markdown("---")
-                st.markdown(render_panel("Live Network Ingestion Stream", "Latest 100"), unsafe_allow_html=True)
-                df_display = df_pkts.copy()
-                df_display["Route"] = df_display["source_ip"] + " → " + df_display["dest_ip"]
-                df_display = df_display[["Time", "interface", "protocol", "Route", "length"]]
-                df_display.columns = ["Time", "Interface", "Protocol", "Network Route", "Length (Bytes)"]
-                display_soc_dataframe(df_display)
-            st.markdown("---")
-            if st.button("🔄 Refresh Stream", use_container_width=True):
-                st.rerun()
+                packets = data.get("packets", [])
+                stats = data.get("stats", {})
+                if stats.get("error_message"):
+                    st.error(f"Npcap/Scapy Sniffer Failed: {stats['error_message']}")
+                    st.info("The remaining BankShield AI modules continue running successfully.")
+                _render_packet_live_view(packets, stats, is_replay=False)
 
 # ==========================================================
 # PAGE 3: Asset Monitoring
