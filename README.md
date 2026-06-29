@@ -1,97 +1,96 @@
 # 🏦 BankShield AI
-### AI-Powered Intrusion Detection System for Banking IoT Networks
 
-<p align="center">
+### AI-Powered Banking Security Operations Center (SOC) for Banking IoT Networks
 
-![Python](https://img.shields.io/badge/Python-3.11-blue?style=for-the-badge)
-![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688?style=for-the-badge)
-![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B?style=for-the-badge)
-![Machine Learning](https://img.shields.io/badge/Machine%20Learning-Random%20Forest-orange?style=for-the-badge)
-![SHAP](https://img.shields.io/badge/Explainable%20AI-SHAP-purple?style=for-the-badge)
-![License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)
-
-</p>
+[![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)]()
+[![FastAPI](https://img.shields.io/badge/FastAPI-Backend-009688.svg)]()
+[![Streamlit](https://img.shields.io/badge/Streamlit-Dashboard-FF4B4B.svg)]()
+[![Machine Learning](https://img.shields.io/badge/Machine-Learning-orange.svg)]()
+[![Random Forest](https://img.shields.io/badge/Random%20Forest-Intrusion%20Detection-success.svg)]()
+[![SHAP](https://img.shields.io/badge/Explainable%20AI-SHAP-purple.svg)]()
+[![License](https://img.shields.io/badge/License-MIT-green.svg)]()
 
 ---
 
-# 📌 Overview
+## 🌐 Live Demo
 
-**BankShield AI** is an AI-powered **Security Operations Center (SOC)** platform designed for **Banking IoT Networks**.
+### 🚀 Streamlit Dashboard
 
-The system combines **Machine Learning**, **Zero-Day Detection**, **Explainable AI**, **Real-Time Network Monitoring**, and an **AI Security Copilot** to detect, analyze, explain, and prioritize cyber threats targeting banking infrastructure.
-
-The project simulates an enterprise-grade Banking SOC inspired by modern security platforms such as **Microsoft Sentinel**, **IBM QRadar**, **Splunk Enterprise Security**, and **CrowdStrike Falcon**.
+https://bankshield-ids.streamlit.app
 
 ---
 
-# 🚀 Key Features
+## 📂 GitHub Repository
 
-- 🛡 Random Forest Intrusion Detection System
+https://github.com/Divakar-18/Bankshield-IDS
+
+---
+
+# 📖 Overview
+
+**BankShield AI** is an Enterprise AI-powered Banking Security Operations Center (SOC) designed to secure Banking IoT infrastructures against cyber threats.
+
+The platform combines **Machine Learning**, **Zero-Day Threat Detection**, **Explainable AI**, **Threat Intelligence**, and **Real-Time Security Monitoring** into a unified SOC dashboard for cybersecurity analysts.
+
+---
+
+# ✨ Key Features
+
+- 🛡️ Random Forest Intrusion Detection System
 - 🚨 Isolation Forest Zero-Day Detection
 - 🧠 Explainable AI using SHAP
 - 🤖 AI Security Copilot
-- 📡 Live Network Packet Monitoring (Scapy)
-- ⚡ FastAPI Backend
-- 📊 Interactive Streamlit SOC Dashboard
-- 🎯 Threat Intelligence Analysis
-- 🔍 Incident Clustering & Investigation
-- 📈 Business Risk & Impact Analysis
-- 🏦 Banking Asset Monitoring
-- 📑 Dataset Intelligence
-- 📉 Model Analytics
-- ⚙️ Enterprise SOC Workflow
+- 📡 Live Threat Monitoring
+- 🔄 Cloud Replay Mode for Packet Monitoring
+- 📊 Threat Intelligence Dashboard
+- 📂 Incident Response Center
+- 📈 Model Analytics
+- 📉 Dataset Intelligence
+- ⚠️ Business Risk & Impact Analysis
+- 🔍 Explainable AI Center
 
 ---
 
-# 🖥 SOC Dashboard Modules
+# 🏦 Enterprise SOC Modules
 
-The dashboard consists of **11 enterprise workspaces**:
-
-1. 🛡 SOC Command Center
-2. 📡 Live Threat Monitoring
-3. 🏦 Asset Monitoring
-4. 🚨 Incident Response Center
-5. 🤖 Security Copilot
-6. 🧬 Zero-Day Detection
-7. 🌐 Threat Intelligence
-8. 📊 Risk & Impact Analysis
-9. 🧠 Explainable AI Center
-10. 📈 Model Analytics
-11. 📑 Dataset Intelligence
+- SOC Command Center
+- Live Threat Monitoring
+- Asset Monitoring
+- Incident Response Center
+- Security Copilot
+- Zero-Day Detection
+- Threat Intelligence
+- Risk & Impact Analysis
+- Explainable AI Center
+- Model Analytics
+- Dataset Intelligence
 
 ---
 
-# 🧠 Machine Learning Pipeline
+# 🧠 AI & Machine Learning Pipeline
 
-```
-Network Traffic
-        │
-        ▼
-Packet Capture (Scapy)
-        │
-        ▼
-Feature Extraction
-        │
-        ▼
-Random Forest
-(Known Attack Detection)
-        │
-        ▼
-Isolation Forest
-(Zero-Day Detection)
-        │
-        ▼
-SHAP Explainability
-        │
-        ▼
-FastAPI Backend
-        │
-        ▼
-Streamlit SOC Dashboard
-        │
-        ▼
-Security Copilot
-```
+- Data Collection
+- Data Cleaning
+- Feature Engineering
+- SMOTE Class Balancing
+- Random Forest Classification
+- Isolation Forest Anomaly Detection
+- SHAP Explainability
+- Threat Intelligence Correlation
+- Incident Clustering
+- Business Impact Analysis
+
+---
+
+# 📊 Model Performance
+
+| Metric | Value |
+|---------|-------|
+| Detection Accuracy | **96.82%** |
+| ML Algorithm | Random Forest |
+| Zero-Day Detection | Isolation Forest |
+| Explainability | SHAP |
+| Data Balancing | SMOTE |
 
 ---
 
@@ -102,204 +101,126 @@ Security Copilot
 
 ---
 
-# 📊 Model Performance
-
-| Metric | Value |
-|---------|-------|
-| Accuracy | **96.82%** |
-| Class Balancing | SMOTE |
-| Explainability | SHAP |
-| Zero-Day Detection | Isolation Forest |
-| Multi-Class Classification | Random Forest |
-
----
-
-# 🛠 Technology Stack
-
-### Programming Language
-- Python
+# 🛠️ Technology Stack
 
 ### Backend
-- FastAPI
 
-### Frontend
-- Streamlit
+- FastAPI
+- Python
 
 ### Machine Learning
-- Scikit-learn
+
+- Scikit-Learn
 - Random Forest
 - Isolation Forest
 - SHAP
 
-### Network Monitoring
-- Scapy
+### Dashboard
 
-### Data Analysis
-- Pandas
-- NumPy
-
-### Visualization
+- Streamlit
 - Plotly
-- Matplotlib
+- Pandas
+
+### Networking
+
+- Scapy
+- Npcap (Local Deployment)
+
+---
+
+# ☁️ Cloud Deployment
+
+### Streamlit Cloud
+
+Frontend Dashboard
+
+### Render
+
+FastAPI Backend API
+
+### Cloud Replay Mode
+
+Because public cloud platforms restrict raw packet capture, Live Threat Monitoring automatically switches to **Replay Mode**, demonstrating real-time packet analytics using simulated telemetry while preserving full local live-capture capability.
+
+---
+
+# 🚀 Running Locally
+
+## 1. Clone Repository
+
+```bash
+git clone https://github.com/Divakar-18/Bankshield-IDS.git
+cd Bankshield-IDS
+```
+
+## 2. Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+## 3. Start Backend
+
+```bash
+python -m backend.main
+```
+
+## 4. Launch Dashboard
+
+```bash
+streamlit run dashboard.py
+```
 
 ---
 
 # 📁 Project Structure
 
 ```
-BankShield-IDS
+BankShield-IDS/
 │
 ├── backend/
-│   ├── api/
-│   ├── models/
-│   ├── ml_pipeline.py
-│   ├── main.py
-│
-├── data/
-│
+├── frontend/
 ├── docs/
-│
-├── screenshots/
-│
+├── .streamlit/
 ├── dashboard.py
-│
 ├── requirements.txt
-│
 ├── README.md
-│
 └── LICENSE
-```
-
----
-
-# ▶️ Installation
-
-Clone the repository
-
-```bash
-git clone https://github.com/Divakar-18/Bankshield-IDS.git
-```
-
-Move into the project
-
-```bash
-cd Bankshield-IDS
-```
-
-Install dependencies
-
-```bash
-pip install -r requirements.txt
-```
-
----
-
-# ▶️ Run Backend
-
-```bash
-python -m backend.main
-```
-
----
-
-# ▶️ Run Dashboard
-
-```bash
-python -m streamlit run dashboard.py
-```
-
----
-
-# 📸 Dashboard Preview
-
-> Add screenshots inside the `screenshots/` folder and replace the image paths below.
-
-### 🛡 SOC Command Center
-
-![SOC Dashboard](screenshots/soc_dashboard.png)
-
----
-
-### 📡 Live Threat Monitoring
-
-![Threat Monitoring](screenshots/live_monitor.png)
-
----
-
-### 🤖 Security Copilot
-
-![Security Copilot](screenshots/security_copilot.png)
-
----
-
-### 🧬 Zero-Day Detection
-
-![Zero Day](screenshots/zero_day.png)
-
----
-
-### 🧠 Explainable AI Center
-
-![SHAP](screenshots/shap.png)
-
----
-
-# 🌐 Live Demo
-
-> **Coming Soon**
-
-After deployment, add your link here.
-
-Example:
-
-```
-https://bankshield-ai.streamlit.app
-```
-
-or
-
-```
-https://bankshield-ai.up.railway.app
 ```
 
 ---
 
 # 🔮 Future Enhancements
 
-- Threat Hunting Module
 - SIEM Integration
-- Real-Time Log Analytics
-- Threat Intelligence Feeds
-- Cloud Deployment
-- Multi-Bank Monitoring
-- Email & SMS Alerting
-- Automated Incident Response
-- LLM-powered SOC Assistant
+- Cloud IDS Deployment
+- MITRE ATT&CK Mapping
+- Threat Hunting Automation
+- Deep Learning-based Detection
+- SOC Analyst Chat Assistant
+- Real-Time Threat Correlation
 
 ---
 
 # 👨‍💻 Author
 
-## **Divakar I**
+## Divakar I
 
 **B.Tech – Artificial Intelligence & Data Science**
 
 Tagore Engineering College
 
-🔗 **GitHub**
-https://github.com/Divakar-18
+---
 
-🔗 **LinkedIn**
-https://www.linkedin.com/in/divakar-ai/
+## 📬 Connect
+
+- GitHub: https://github.com/Divakar-18
+- LinkedIn: https://www.linkedin.com/in/divakar-ai/
 
 ---
 
-# ⭐ Support
+## ⭐ Support
 
-If you found this project useful, please consider giving it a ⭐ on GitHub.
+If you found this project useful,
 
----
-
-# 📜 License
-
-This project is licensed under the **MIT License**.
+⭐ Star this repository on GitHub.
